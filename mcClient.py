@@ -21,7 +21,7 @@ def downloadFile():
 		while True:
 			print('receiving data...')
 			data = clientSocket.recv(1024)
-			print('data=%s', (data))
+			#print('data=%s', (data))
 			if not data:
 				break
 			# write data to a file
@@ -80,11 +80,11 @@ print("yay")
 
 
 
-while byteSent != len(data):
-    #send that string!
-	byteSent += clientSocket.send(data[byteSent :])
-	print  ("Trying to send")
-	print (data)
+# while byteSent != len(data):
+    # #send that string!
+	# byteSent += clientSocket.send(data[byteSent :])
+	# print  ("Trying to send")
+	# print (data)
 
 
 #Close the socket
