@@ -15,13 +15,20 @@ serverSocket.listen()
 
 print ("The server is ready to receive ")
 
-connectionSocket, addr=serverSocket.accept()
-
-with connectionSocket:
+data=""
+    
+while True:
+	connectionSocket, addr=serverSocket.accept()
 	print('Connected by', addr)
+	filename='test.txt'
+	f = open(filename,'rb')
+	l = f.read(1024)
+	while (l):
+		connectionSocket.send(l)
+		print('Sent ',repr(l))
+		l = f.read(1024)
+	f.close()
 	
-	while True:
-		data = connctionSocket.recv(1024)
-		if not data:
-			break
-		connectionSocket.sendall(data)
+	print("Done sending")
+	
+	connectionSocket.close()
