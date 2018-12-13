@@ -6,8 +6,8 @@ import sys
 		
 #Name and port number of the server to
 # which want to connect
-serverName = "192.168.1.114"
-#serverName = "192.168.1.127"
+serverName = "192.168.1.133"
+#serverName = "192.168.1.133"
 serverPort = 12000
 
 #Create a socket
@@ -17,7 +17,7 @@ clientSocket = socket(AF_INET, SOCK_STREAM)
 def downloadFile(filename):
 	numSent = 0
 	print(filename)
-	with open(filename, "w+") as f:
+	with open(filename, "wb") as f:
 		print("Downloading file ", filename)
 		while True:
 			# The buffer to all data received from the
@@ -55,12 +55,13 @@ def downloadFile(filename):
 			if not fileData:
 				break
 			# write data to a file
-			f.write(bytesDecoded)
-			numSent = numSent + 1
+			f.write(fileData)
+			f.close()
+			break
 				
-		f.close()
+		
 		print('Successfully got the file')
-		print ("Sent ", numSent, " bytes.")
+		print ("Received ", fileSize,  "bytes.")
 		print("ftp>", end="")
 		
 		inputChoice = input()
