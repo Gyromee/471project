@@ -7,7 +7,7 @@ import sys
 #Name and port number of the server to
 # which want to connect
 serverName = "192.168.1.114"
-#serverName = "192.168.1.127"
+#serverName = "192.168.1.133"
 serverPort = 12000
 
 #Create a socket
@@ -17,7 +17,7 @@ clientSocket = socket(AF_INET, SOCK_STREAM)
 def downloadFile(filename):
 	numSent = 0
 	print(filename)
-	with open(filename, 'wb') as f:
+	with open(filename, "wb") as f:
 		print("Downloading file ", filename)
 		while True:
 			# The buffer to all data received from the
@@ -36,30 +36,32 @@ def downloadFile(filename):
 			
 			# Receive the first 10 bytes indicating the
 			# size of the file
-			fileSizeBuff = recvAll(clientSock, 10)
+			fileSizeBuff = clientSocket.recv(10)
 				
 			# Get the file size
+			print(fileSizeBuff)
 			fileSize = int(fileSizeBuff)
 			
-			print "The file size is ", fileSize
+			print ("The file size is " +  str(fileSize))
 			
 			# Get the file data
-			fileData = recvAll(clientSock, fileSize)
 			
-			print "The file data is: "
-			print fileData
+			print ("The file data is: ")
+			print (fileData)
 			print('receiving data...')
-			data = clientSocket.recv(1024)
+			fileData = clientSocket.recv(fileSize)
+			bytesDecoded = fileData.decode()
 			#print('data=%s', (data))
-			if not data:
+			if not fileData:
 				break
 			# write data to a file
-			f.write(data)
-			numSent = numSent + 1
+			f.write(fileData)
+			f.close()
+			break
 				
-		f.close()
+		
 		print('Successfully got the file')
-		print ("Sent ", numSent, " bytes.")
+		print ("Received ", fileSize,  "bytes.")
 		print("ftp>", end="")
 		
 		inputChoice = input()
@@ -135,7 +137,7 @@ def uploadFile():
 
 def listFile():
 	print("Below are the files")
-	clientSocket.sendall(b'commandLs')
+	clientSocket.sendall(b'ls')
 	while True:
 			data = clientSocket.recv(1024)
 			#print('data=%s', (data))
@@ -143,6 +145,7 @@ def listFile():
 				break
 			# write data to a file
 			print(data.decode())
+			
 			
 
 
