@@ -19,45 +19,43 @@ def downloadFile(filename):
 	print(filename)
 	with open(filename, "wb") as f:
 		print("Downloading file ", filename)
-		while True:
-			# The buffer to all data received from the
-			# the client.
-			fileData = ""
+		# The buffer to all data received from the
+		# the client.
+		fileData = ""
+		
+		# The temporary buffer to store the received
+		# data.
+		recvBuff = ""
+		
+		# The size of the incoming file
+		fileSize = 0	
+		
+		# The buffer containing the file size
+		fileSizeBuff = ""
+		
+		# Receive the first 10 bytes indicating the
+		# size of the file
+		fileSizeBuff = clientSocket.recv(10)
 			
-			# The temporary buffer to store the received
-			# data.
-			recvBuff = ""
-			
-			# The size of the incoming file
-			fileSize = 0	
-			
-			# The buffer containing the file size
-			fileSizeBuff = ""
-			
-			# Receive the first 10 bytes indicating the
-			# size of the file
-			fileSizeBuff = clientSocket.recv(10)
-				
-			# Get the file size
-			print(fileSizeBuff)
-			fileSize = int(fileSizeBuff)
-			
-			print ("The file size is " +  str(fileSize))
-			
-			# Get the file data
-			
-			print ("The file data is: ")
-			print (fileData)
-			print('receiving data...')
-			fileData = clientSocket.recv(fileSize)
-			bytesDecoded = fileData.decode()
-			#print('data=%s', (data))
-			if not fileData:
-				break
-			# write data to a file
-			f.write(fileData)
-			f.close()
-			break
+		# Get the file size
+		print(fileSizeBuff)
+		fileSize = int(fileSizeBuff)
+		
+		print ("The file size is " +  str(fileSize))
+		
+		# Get the file data
+		
+		print ("The file data is: ")
+		print (fileData)
+		print('receiving data...')
+		fileData = clientSocket.recv(fileSize)
+		bytesDecoded = fileData.decode()
+		#print('data=%s', (data))
+	
+		# write data to a file
+		f.write(fileData)
+		f.close()
+		
 				
 		
 		print('Successfully got the file')
@@ -138,24 +136,54 @@ def uploadFile():
 def listFile():
 	print("Below are the files")
 	clientSocket.sendall(b'ls')
-	while True:
-			data = clientSocket.recv(1024)
-			#print('data=%s', (data))
-			if not data:
-				break
-			# write data to a file
-			print(data.decode())
-			
-			
-
-
-			
+	data = ""
 	
+# The buffer to all data received from the
+	# the client.
+	fileData = ""
 	
+	# The temporary buffer to store the received
+	# data.
+	recvBuff = ""
+	
+	# The size of the incoming file
+	fileSize = 0	
+	
+	# The buffer containing the file size
+	fileSizeBuff = ""
+	
+	# Receive the first 10 bytes indicating the
+	# size of the file
+	fileSizeBuff = clientSocket.recv(10)
+		
+	# Get the file size
+	print(fileSizeBuff)
+	fileSize = int(fileSizeBuff)
+	
+	print ("The file size is " +  str(fileSize))
+	
+	# Get the file data
+	
+	print ("The file data is: ")
+	print (fileData)
+
+	fileData = clientSocket.recv(fileSize)
+	bytesDecoded = fileData.decode()
+	#print('data=%s', (data))
+	# write data to a file
+	print(fileData)
+	
+
+	print ("Received ", fileSize,  "bytes.")
 	print("ftp>", end="")
 	
 	inputChoice = input()
 	choiceInput(inputChoice)
+	
+	
+	
+	#print(data)
+	
 	
 
 def quitProgram():
