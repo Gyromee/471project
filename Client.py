@@ -1,24 +1,53 @@
 #Client code
 from socket import *
+import os
+import sys
 
 		
 #Name and port number of the server to
 # which want to connect
 serverName = "192.168.1.114"
+#serverName = "192.168.1.127"
 serverPort = 12000
 
 #Create a socket
 clientSocket = socket(AF_INET, SOCK_STREAM)
 
 
-def downloadFile():
-	print ("What file would you like to download?")
-	downloadChoice = input()
-	clientSocket.connect((serverName, serverPort))
-	#clientSocket.send(input)
-	with open('received_file', 'wb') as f:
-		print("file opened")
+def downloadFile(filename):
+	numSent = 0
+	print(filename)
+	with open(filename, 'wb') as f:
+		print("Downloading file ", filename)
 		while True:
+			# The buffer to all data received from the
+			# the client.
+			fileData = ""
+			
+			# The temporary buffer to store the received
+			# data.
+			recvBuff = ""
+			
+			# The size of the incoming file
+			fileSize = 0	
+			
+			# The buffer containing the file size
+			fileSizeBuff = ""
+			
+			# Receive the first 10 bytes indicating the
+			# size of the file
+			fileSizeBuff = recvAll(clientSock, 10)
+				
+			# Get the file size
+			fileSize = int(fileSizeBuff)
+			
+			print "The file size is ", fileSize
+			
+			# Get the file data
+			fileData = recvAll(clientSock, fileSize)
+			
+			print "The file data is: "
+			print fileData
 			print('receiving data...')
 			data = clientSocket.recv(1024)
 			#print('data=%s', (data))
@@ -26,62 +55,154 @@ def downloadFile():
 				break
 			# write data to a file
 			f.write(data)
-			
-	f.close()
-	print('Successfully get the file')
-	#replace under with input for switch later
-	print('connection closed')
-	return
+			numSent = numSent + 1
+				
+		f.close()
+		print('Successfully got the file')
+		print ("Sent ", numSent, " bytes.")
+		print("ftp>", end="")
+		
+		inputChoice = input()
+		choiceInput(inputChoice)
+		#replace under with input for switch later
+		#clientSocket.close()
 
 
 
 def uploadFile():
-	print("Upload file")
-	return;
+	numSent = 0
+	print ("What file would you like to upload?")
+	downloadChoice = input()
+	# The name of the file
+	fileName = downloadChoice
+
+	# Open the file
+	fileObj = open(fileName, "r")
+	# The number of bytes sentE`
+
+	# The file data
+	fileData = None
+
+	# Keep sending until all is sent
+	while True:
+		
+		# Read 65536 bytes of data
+		fileData = fileObj.read(65536)
+		
+		# Make sure we did not hit EOF
+		if fileData:
+			
+				
+			# Get the size of the data read
+			# and convert it to string
+			dataSizeStr = str(len(fileData))
+			
+			# Prepend 0's to the size string
+			# until the size is 10 bytes
+			while len(dataSizeStr) < 10:
+				dataSizeStr = "0" + dataSizeStr
+		
+		
+			# Prepend the size of the data to the
+			# file data.
+			fileData = dataSizeStr + fileData	
+			
+			# The number of bytes sent
+			numSent = 0
+			
+			# Send the data!
+			while len(fileData) > numSent:
+				numSent = numSent + clientSocket.send(fileData[numSent:].encode())
+		
+		# The file has been read. We are done
+		else:
+			break
+
+
+	print ("Sent ", numSent, " bytes.")
+	
+	
+		
+	# Close the socket and the file
+
+	fileObj.close()
+	
+	print("ftp>", end="")
+	
+	inputChoice = input()
+	choiceInput(inputChoice)
 	
 
 def listFile():
-	print("List file")
+	print("Below are the files")
+	clientSocket.sendall(b'commandLs')
+	while True:
+			data = clientSocket.recv(1024)
+			#print('data=%s', (data))
+			if not data:
+				break
+			# write data to a file
+			print(data.decode())
+			
+
+
+			
+	
+	
+	print("ftp>", end="")
+	
+	inputChoice = input()
+	choiceInput(inputChoice)
+	
 
 def quitProgram():
 	print("Quitting program")
+	
+	clientSocket.sendall(b'commandQuit')
 	clientSocket.close()
-	print("Connection now closed")
+	
+def test():
+	clientSocket.sendall(b'commandTest')
+	clientSocket.close()
+	
 	
 def choiceInput(inputChoice):
+	string = inputChoice.split()
+	stringCount = len(string)
+	if(stringCount > 1):
+		command, filename = string
+		print(command)
+		print(filename)
+	else:
+		command = inputChoice
 
-	if inputChoice == "1":
-		downloadFile()
-		printChoices()
-		inputChoice = input()
-		choiceInput(inputChoice)
-	elif inputChoice == "2":
+	if command == "get":
+		print(inputChoice.encode())
+		clientSocket.send(command.encode() + b'_' + filename.encode())
+		downloadFile(filename)
+	elif command == "put":
+		clientSocket.send(inputChoice.encode())
 		uploadFile()
-	elif inputChoice == "3":
+	elif command == "ls":
 		listFile()
-	elif inputChoice == "4":
+	elif command == "quit":
 		quitProgram()
 
-	
-def printChoices():
-	print ("Hello. What would you like to do?")
-	print ("1. Download file")
-	print ("2. Upload file")
-	print ("3. List files")
-	print ("4. Quit")	
-		
 
+    
+def printChoices():
+    print("ftp>", end="")
 
 #Connect to the server
-#clientSocket.connect((serverName, serverPort))
+clientSocket.connect((serverName, serverPort))
+#
 
 #A string we want to send to the server
 data= "Hello world! This is a very long string."
-
+value = True
 printChoices()
 inputChoice = input()
 choiceInput(inputChoice)
-
 
 
 
@@ -91,9 +212,9 @@ choiceInput(inputChoice)
 
 # while byteSent != len(data):
     # #send that string!
-	# byteSent += clientSocket.send(data[byteSent :])
-	# print  ("Trying to send")
-	# print (data)
+    # byteSent += clientSocket.send(data[byteSent :])
+    # print  ("Trying to send")
+    # print (data)
 
 
 #Close the socket
