@@ -68,27 +68,48 @@ def uploadToClient(filename):
 
 #Receive a file from the client
 def downloadFromClient(filename):
-	print("succkerrrrq")
-	# The buffer
-	recvBuff = ""
-	
-	# The temporary buffer
-	tmpBuff = ""
-	
-	# Keep receiving till all is received
-	while len(recvBuff) < numBytes:
+	numSent = 0
+	print(filename)
+	with open(filename, "wb") as f:
+		print("Downloading file ", filename)
+		# The buffer to all data received from the
+		# the client.
+		fileData = ""
 		
-		# Attempt to receive bytes
-		tmpBuff =  sock.recv(numBytes)
+		# The temporary buffer to store the received
+		# data.
+		recvBuff = ""
 		
-		# The other side has closed the socket
-		if not tmpBuff:
-			break
+		# The size of the incoming file
+		fileSize = 0	
 		
-		# Add the received bytes to the buffer
-		recvBuff += tmpBuff
+		# The buffer containing the file size
+		fileSizeBuff = ""
+		
+		# Receive the first 10 bytes indicating the
+		# size of the file
+		fileSizeBuff = connectionSocket.recv(10)
+			
+		# Get the file size
+		print(fileSizeBuff)
+		fileSize = int(fileSizeBuff.decode())
+		
+		print ("The file size is " +  str(fileSize))
+		
+		# Get the file data
+		
+		print ("The file data is: ")
+		print (fileData)
+		print('receiving data...')
+		fileData = connectionSocket.recv(fileSize)
+		bytesDecoded = fileData.decode()
+		#print('data=%s', (data))
 	
-	print(recvBuff)
+		# write data to a file
+		
+		f.write(fileData)
+		f.close()		
+	print('File received successfully!')
 	clientInput()
 	
 
@@ -96,8 +117,37 @@ def downloadFromClient(filename):
 def ls():
 	path = '.'
 	print("succker")
-	# Run ls command, get output, and print it
+	# Run ls command, get output, and setup the data
 	files = os.listdir(path)
+	data = ""
+	for name in files:
+		data += name + "_"
+			
+		print("im in here")
+	
+	# Get the size of the data read
+	# and convert it to string
+
+	dataSizeStr = str(len(data))
+	print(dataSizeStr)
+	
+	# Prepend 0's to the size string
+	# until the size is 10 bytes
+	while len(dataSizeStr) < 10:
+		dataSizeStr = "0" + dataSizeStr
+		
+	data = dataSizeStr + str(data)
+	
+	# The number of bytes sent
+	numSent = 0
+
+	# Send the data!
+	while len(data) > numSent:
+		print(numSent)
+		numSent = numSent + connectionSocket.send(data[numSent:].encode())
+		print(numSent)
+	print("Done sending")
+	
 	
 	clientInput()
 		
@@ -113,12 +163,11 @@ def quit():
 
 
 def clientInput():
-	print("hyyy")
 	with connectionSocket:
 		while True:
 			#Receive a command from the client
 			command = connectionSocket.recv(1024)
-			print(command)
+			print("hello")
 			#If using get or put, split the command to obtain the filename
 			string = command.split(b'_')
 			stringCount = len(string)
@@ -131,21 +180,19 @@ def clientInput():
 			
 			
 			command = b'_' + command
-			if not command:
-				break;
+			if command == b'_':
+				break
 			if command == b'_get':
 				uploadToClient(filename)
 			elif command == b'_put':
 				print("hi")
-				downloadFromClient()
+				downloadFromClient(filename)
 			elif command ==b'_ls':
 				ls()
 			elif command ==b'_quit':
 				quit()
 			if command == b'commandTest':
-				uploadToClient()
-		
-	
+				uploadToClient()	
 
 print ("The server is ready to receive ")
 connectionSocket, addr=serverSocket.accept()
