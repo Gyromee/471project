@@ -15,8 +15,30 @@ serverSocket.bind(('', serverPort))
 #Start listening for incoming connections
 serverSocket.listen()
 
+
+#Setup the ephemeral port
+# Create a socket
+serverSocket2 = socket(AF_INET, SOCK_STREAM)
+
+# Bind the socket to port 0
+serverSocket2.bind(('',0))
+
 #Send a file to the client
 def uploadToClient(filename):
+	# Retreive the ephemeral port number
+	print ("I chose ephemeral port: ", serverSocket2.getsockname()[1])
+
+	#Send the ephemeral port number to the client
+	connectionSocket.send(str(serverSocket2.getsockname()[1]).encode())
+
+	#listen for new connections on the ephemeral port
+	serverSocket2.listen(1)
+
+	#Accept connections on the ephemeral port
+	dataSocket, addr2 =serverSocket2.accept()
+	
+	print('Connected by', addr2)
+	
 	print("succkerrrrq")	
 	
 	#Open the file
@@ -28,39 +50,37 @@ def uploadToClient(filename):
 	
 
 	# Make sure we did not hit EOF
-	if fileData:
-
-		# Get the size of the data read
-		# and convert it to string
-		
-		dataSizeStr = str(len(fileData))
-
-		# Prepend 0's to the size string
-		# until the size is 10 bytes
-		while len(dataSizeStr) < 10:
-			dataSizeStr = "0" + dataSizeStr
-
-		# Prepend the size of the data to the
-		# file data.
-		fileData = dataSizeStr + str(fileData)
-
-		# The number of bytes sent
-		numSent = 0
-
-		# Send the data!
-		while len(fileData) > numSent:
-			print(numSent)
-			numSent = numSent + connectionSocket.send(fileData[numSent:].encode())
-			print(numSent)
-		print("Done sending")
-		fileObj.close()
-		
-	# The file has been read. We are done
-	else:
-		print("hey")
 	
-	#Return to the main function for reading client input commands
-	clientInput()
+
+	# Get the size of the data read
+	# and convert it to string
+	
+	dataSizeStr = str(len(fileData))
+
+	# Prepend 0's to the size string
+	# until the size is 10 bytes
+	while len(dataSizeStr) < 10:
+		dataSizeStr = "0" + dataSizeStr
+
+	# Prepend the size of the data to the
+	# file data.
+	fileData = dataSizeStr + str(fileData)
+
+	# The number of bytes sent
+	numSent = 0
+	print(fileData)
+	print("poop")
+	# Send the data!
+	while len(fileData) > numSent:
+		print(numSent)
+		numSent = numSent + dataSocket.send(fileData[numSent:].encode())
+		print(numSent)
+	print("Done sending")
+	fileObj.close()
+	dataSocket.close()
+	print("Closing connection with ", addr, " on port ",serverSocket2.getsockname()[1] )
+
+
 	
 
 	
@@ -68,6 +88,20 @@ def uploadToClient(filename):
 
 #Receive a file from the client
 def downloadFromClient(filename):
+	# Retreive the ephemeral port number
+	print ("I chose ephemeral port: ", serverSocket2.getsockname()[1])
+
+	#Send the ephemeral port number to the client
+	connectionSocket.send(str(serverSocket2.getsockname()[1]).encode())
+
+	#listen for new connections on the ephemeral port
+	serverSocket2.listen(1)
+
+	#Accept connections on the ephemeral port
+	dataSocket, addr2 =serverSocket2.accept()
+	
+	print('Connected by', addr2)
+	
 	numSent = 0
 	print(filename)
 	with open(filename, "wb") as f:
@@ -110,7 +144,8 @@ def downloadFromClient(filename):
 		f.write(fileData)
 		f.close()		
 	print('File received successfully!')
-	clientInput()
+	dataSocket.close()
+	print("Closing connection with ", addr, " on port ",serverSocket2.getsockname()[1] )
 	
 
 #List all files in the directory
@@ -121,7 +156,7 @@ def ls():
 	files = os.listdir(path)
 	data = ""
 	for name in files:
-		data += name + "_"
+		data += name + "?"
 			
 		print("im in here")
 	
@@ -147,15 +182,14 @@ def ls():
 		numSent = numSent + connectionSocket.send(data[numSent:].encode())
 		print(numSent)
 	print("Done sending")
-	
-	
-	clientInput()
+
 		
 	
 #Close the connection 
 def quit():
 	print("Closing connection with ", addr)
 	connectionSocket.close()
+	sys.exit(0)
 	
 
 
@@ -164,12 +198,14 @@ def quit():
 
 def clientInput():
 	with connectionSocket:
+		
 		while True:
+			print("waiting for command...")
 			#Receive a command from the client
 			command = connectionSocket.recv(1024)
-			print("hello")
+			
 			#If using get or put, split the command to obtain the filename
-			string = command.split(b'_')
+			string = command.split(b'?')
 			stringCount = len(string)
 			if(stringCount > 1 and stringCount < 3):
 				command, filename = string
@@ -179,20 +215,22 @@ def clientInput():
 				print(filename)				
 			
 			
-			command = b'_' + command
-			if command == b'_':
+			command = b'?' + command
+			print(command)
+			if command == b'?':
 				break
-			if command == b'_get':
-				uploadToClient(filename)
-			elif command == b'_put':
+			if command == b'?get':		
+				uploadToClient(filename)		
+			elif command == b'?put':
 				print("hi")
 				downloadFromClient(filename)
-			elif command ==b'_ls':
+			elif command ==b'?ls':
 				ls()
-			elif command ==b'_quit':
+			elif command ==b'?quit':
+				print("im qutting")
 				quit()
-			if command == b'commandTest':
-				uploadToClient()	
+			else:
+				print("invalid command")
 
 print ("The server is ready to receive ")
 connectionSocket, addr=serverSocket.accept()
