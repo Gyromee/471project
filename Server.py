@@ -4,20 +4,20 @@ import os
 import sys
 
 #The port on which to listen
-serverPort = 12000
+serverPort = sys.argv[1]
 
 #Create a TCP socket
 serverSocket = socket(AF_INET, SOCK_STREAM)
 
 #Bind the socket to the port
-serverSocket.bind(('', serverPort))
+serverSocket.bind(('', int(serverPort)))
+
 
 #Start listening for incoming connections
 serverSocket.listen()
 
-
-#Setup the ephemeral port
-# Create a socket
+#Setup the ephemeral port on serverSocket2
+#Create a socket
 serverSocket2 = socket(AF_INET, SOCK_STREAM)
 
 # Bind the socket to port 0
@@ -25,11 +25,10 @@ serverSocket2.bind(('',0))
 
 #Send a file to the client
 def uploadToClient(filename):
-	# Retreive the ephemeral port number
-	print ("I chose ephemeral port: ", serverSocket2.getsockname()[1])
 
 	#Send the ephemeral port number to the client
 	connectionSocket.send(str(serverSocket2.getsockname()[1]).encode())
+	ephemeralPort = str(serverSocket2.getsockname()[1])
 
 	#listen for new connections on the ephemeral port
 	serverSocket2.listen(1)
@@ -37,24 +36,16 @@ def uploadToClient(filename):
 	#Accept connections on the ephemeral port
 	dataSocket, addr2 =serverSocket2.accept()
 	
-	print('Connected by', addr2)
-	
-	print("succkerrrrq")	
+	print("Connected by " + str(addr2[0]) + " on ephemeral port " + str(ephemeralPort))
 	
 	#Open the file
 	fileObj = open(filename.decode(),'r')
 	
-	# Read 65536 bytes of data
-	fileData = fileObj.read(65536)
+	# Read the data
+	fileData = fileObj.read()
 	
-	
-
-	# Make sure we did not hit EOF
-	
-
 	# Get the size of the data read
 	# and convert it to string
-	
 	dataSizeStr = str(len(fileData))
 
 	# Prepend 0's to the size string
@@ -68,42 +59,31 @@ def uploadToClient(filename):
 
 	# The number of bytes sent
 	numSent = 0
-	print(fileData)
-	print("poop")
-	# Send the data!
+
+	# Send the data
 	while len(fileData) > numSent:
-		print(numSent)
 		numSent = numSent + dataSocket.send(fileData[numSent:].encode())
-		print(numSent)
-	print("Done sending")
+	print("Done sending.")
 	fileObj.close()
 	dataSocket.close()
-	print("Closing connection with ", addr, " on port ",serverSocket2.getsockname()[1] )
+	print("Closing data channel with ", addr, " on ephemeral port ",serverSocket2.getsockname()[1] )
 
-
-	
-
-	
-	
 
 #Receive a file from the client
 def downloadFromClient(filename):
-	# Retreive the ephemeral port number
-	print ("I chose ephemeral port: ", serverSocket2.getsockname()[1])
 
 	#Send the ephemeral port number to the client
 	connectionSocket.send(str(serverSocket2.getsockname()[1]).encode())
-
+	ephemeralPort = str(serverSocket2.getsockname()[1])
+	
 	#listen for new connections on the ephemeral port
 	serverSocket2.listen(1)
 
 	#Accept connections on the ephemeral port
 	dataSocket, addr2 =serverSocket2.accept()
 	
-	print('Connected by', addr2)
-	
-	numSent = 0
-	print(filename)
+	print("Connected by " + str(addr2[0]) + " on ephemeral port " + str(ephemeralPort))
+
 	with open(filename, "wb") as f:
 		print("Downloading file ", filename)
 		# The buffer to all data received from the
@@ -122,49 +102,52 @@ def downloadFromClient(filename):
 		
 		# Receive the first 10 bytes indicating the
 		# size of the file
-		fileSizeBuff = connectionSocket.recv(10)
+		dataSocket.settimeout(20)
+		fileSizeBuff = dataSocket.recv(10)
 			
 		# Get the file size
-		print(fileSizeBuff)
 		fileSize = int(fileSizeBuff.decode())
+		
+		#Make sure the file obeys the size limit
+		if(fileSize > 65536):
+			print("File size" + str(fileSize) + " exceeds maximum capacity")
+			dataSocket.settimeout(20)
+			temp = dataSocket.recv(fileSize)
+			f.close()
+			print(temp)
+			print("Closing data channel with ", addr, " on ephemeral port ",serverSocket2.getsockname()[1] )
+			dataSocket.close()	
+			return
 		
 		print ("The file size is " +  str(fileSize))
 		
 		# Get the file data
-		
-		print ("The file data is: ")
-		print (fileData)
 		print('receiving data...')
-		fileData = connectionSocket.recv(fileSize)
-		bytesDecoded = fileData.decode()
-		#print('data=%s', (data))
-	
-		# write data to a file
+		dataSocket.settimeout(20)
+		fileData = dataSocket.recv(fileSize)
 		
+		# write data to a file		
 		f.write(fileData)
-		f.close()		
+		f.close()
+			
 	print('File received successfully!')
+	print("Closing data channel with ", addr, " on ephemeral port ",serverSocket2.getsockname()[1] )
 	dataSocket.close()
-	print("Closing connection with ", addr, " on port ",serverSocket2.getsockname()[1] )
 	
 
 #List all files in the directory
 def ls():
 	path = '.'
-	print("succker")
+	
 	# Run ls command, get output, and setup the data
 	files = os.listdir(path)
 	data = ""
 	for name in files:
 		data += name + "?"
-			
-		print("im in here")
 	
 	# Get the size of the data read
 	# and convert it to string
-
 	dataSizeStr = str(len(data))
-	print(dataSizeStr)
 	
 	# Prepend 0's to the size string
 	# until the size is 10 bytes
@@ -178,9 +161,7 @@ def ls():
 
 	# Send the data!
 	while len(data) > numSent:
-		print(numSent)
 		numSent = numSent + connectionSocket.send(data[numSent:].encode())
-		print(numSent)
 	print("Done sending")
 
 		
@@ -191,17 +172,13 @@ def quit():
 	connectionSocket.close()
 	sys.exit(0)
 	
-
-
-
-
-
 def clientInput():
 	with connectionSocket:
 		
 		while True:
-			print("waiting for command...")
+			print("\nwaiting for command...")
 			#Receive a command from the client
+			connectionSocket.settimeout(300)
 			command = connectionSocket.recv(1024)
 			
 			#If using get or put, split the command to obtain the filename
@@ -210,35 +187,34 @@ def clientInput():
 			if(stringCount > 1 and stringCount < 3):
 				command, filename = string
 				
-				print("hey")
 				
-				print(filename)				
-			
-			
+			print("SUCCESS: " + command.decode())	
 			command = b'?' + command
-			print(command)
+
 			if command == b'?':
 				break
 			if command == b'?get':		
 				uploadToClient(filename)		
-			elif command == b'?put':
-				print("hi")
+			elif command == b'?put':				
 				downloadFromClient(filename)
 			elif command ==b'?ls':
 				ls()
-			elif command ==b'?quit':
-				print("im qutting")
+			elif command ==b'?quit':				
 				quit()
 			else:
-				print("invalid command")
+				print("FAILURE")
 
 print ("The server is ready to receive ")
 connectionSocket, addr=serverSocket.accept()
-print('Connected by', addr)
-clientInput()
+#Initiate three-way hanshake
+connectionSocket.settimeout(20)
+message = connectionSocket.recv(1024)
+if(message == b'SYN'):
+	connectionSocket.send(b'SYN ACK')
+	#wait for ACK
+	connectionSocket.settimeout(20)
+	message = connectionSocket.recv(1024)
+	if(message == b'ACK'):
+		print('Connected by', addr)
+		clientInput()
 
-
-	#connectionsMade = connectionsMade + 1
-	
-	#print ("The server is ready to receive. Connections made: ")
-	#print (connectionsMade)
