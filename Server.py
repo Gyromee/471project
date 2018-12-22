@@ -85,7 +85,7 @@ def downloadFromClient(filename):
 	print("Connected by " + str(addr2[0]) + " on ephemeral port " + str(ephemeralPort))
 
 	with open(filename, "wb") as f:
-		print("Downloading file ", filename)
+		print("Downloading file ", filename.decode())
 		# The buffer to all data received from the
 		# the client.
 		fileData = ""
@@ -114,7 +114,6 @@ def downloadFromClient(filename):
 			dataSocket.settimeout(20)
 			temp = dataSocket.recv(fileSize)
 			f.close()
-			print(temp)
 			print("Closing data channel with ", addr, " on ephemeral port ",serverSocket2.getsockname()[1] )
 			dataSocket.close()	
 			return
@@ -217,4 +216,3 @@ if(message == b'SYN'):
 	if(message == b'ACK'):
 		print('Connected by', addr)
 		clientInput()
-
