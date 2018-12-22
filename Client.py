@@ -2,14 +2,7 @@
 from socket import *
 import os
 import sys
-
-		
-#Name and port number of the server to
-# which want to connect
-serverName = "192.168.1.114"
-#serverName = "192.168.1.133"
-serverPort = 12000
-ephemeralPort = 1234
+import base64
 
 #Create a socket
 clientSocket = socket(AF_INET, SOCK_STREAM)
@@ -18,13 +11,14 @@ clientSocket = socket(AF_INET, SOCK_STREAM)
 def downloadFile(filename):
 	dataSocket = socket(AF_INET, SOCK_STREAM)
 	numSent = 0
+	dataSocket.settimeout(20)
 	ephemeralPortString = clientSocket.recv(1024).decode()
 	ephemeralPortInt = int(ephemeralPortString)
 	print(ephemeralPortInt)
 	
 	dataSocket.connect((serverName, ephemeralPortInt))
-	print(filename)
-	with open(filename, "wb") as f:
+
+	with open(filename, "w") as f:
 		print("Downloading file ", filename)
 		# The buffer to all data received from the
 		# the client.
@@ -32,7 +26,7 @@ def downloadFile(filename):
 		
 		# The temporary buffer to store the received
 		# data.
-		recvBuff = ""
+		
 		
 		# The size of the incoming file
 		fileSize = 0	
@@ -42,26 +36,37 @@ def downloadFile(filename):
 		
 		# Receive the first 10 bytes indicating the
 		# size of the file
-		
+		dataSocket.settimeout(20)
 		fileSizeBuff = dataSocket.recv(10)
+		
 
 			
 			
 		# Get the file size
-		print(fileSizeBuff)
 		fileSize = int(fileSizeBuff)
+		if(fileSize > 65536):
+			print("File size exceeds maximum capacity")
+			dataSocket.settimeout(20)
+			tmp = dataSocket.recv(fileSize)
+			f.close()
+			dataSocket.close()
+			print("ftp>", end="")
+			
+			inputChoice = input()
+			choiceInput(inputChoice)
+			
 		
-		print ("The file size is " +  str(fileSize))
 		
 		# Get the file data
-		
-		print('receiving data...')
+		dataSocket.settimeout(20)
 		fileData = dataSocket.recv(fileSize)
+		#times out after 20 seconds 
+		
 		bytesDecoded = fileData.decode()
 		#print('data=%s', (data))
 	
 		# write data to a file
-		f.write(fileData)
+		f.write(fileData.decode())
 		f.close()
 		
 				
@@ -72,19 +77,13 @@ def downloadFile(filename):
 		
 		inputChoice = input()
 		choiceInput(inputChoice)
-		#replace under with input for switch later
-		#clientSocket.close()
-
-
-
-
 
 def uploadFile(filename):
 	dataSocket = socket(AF_INET, SOCK_STREAM)
 	numSent = 0
+	dataSocket.settimeout(20)
 	ephemeralPortString = clientSocket.recv(1024).decode()
 	ephemeralPortInt = int(ephemeralPortString)
-	print(ephemeralPortInt)
 	
 	dataSocket.connect((serverName, ephemeralPortInt))
 	# The name of the file
@@ -124,11 +123,8 @@ def uploadFile(filename):
 	
 	# Send the data!
 	while len(fileData) > numSent:
-		numSent = numSent + clientSocket.send(fileData[numSent:].encode())
+		numSent = numSent + dataSocket.send(fileData[numSent:].encode())
 	
-	# The file has been read. We are done
-	#else:
-	#	break
 
 
 	print ("Sent ", numSent, " bytes.")
@@ -138,7 +134,7 @@ def uploadFile(filename):
 	# Close the socket and the file
 
 	fileObj.close()
-	
+	dataSocket.close()
 	print("ftp>", end="")
 	
 	inputChoice = input()
@@ -146,7 +142,6 @@ def uploadFile(filename):
 	
 
 def listFile():
-	print("Below are the files")
 	clientSocket.sendall(b'ls')
 	data = ""
 	
@@ -166,23 +161,17 @@ def listFile():
 	
 	# Receive the first 10 bytes indicating the
 	# size of the file
+	clientSocket.settimeout(20)
 	fileSizeBuff = clientSocket.recv(10)
 		
 	# Get the file size
-	print(fileSizeBuff)
 	fileSize = int(fileSizeBuff)
-	
-	print ("The file size is " +  str(fileSize))
 	
 	# Get the file data
 	
-	print ("The file data is: ")
-	print (fileData)
-
+	clientSocket.settimeout(20)
 	fileData = clientSocket.recv(fileSize)
 	bytesDecoded = fileData.decode()
-	#print('data=%s', (data))
-	# write data to a file
 	string = fileData.split(b'?')
 	for name in string:
 		print(name.decode())
@@ -192,12 +181,6 @@ def listFile():
 	inputChoice = input()
 	choiceInput(inputChoice)
 	
-	
-	
-	#print(data)
-	
-	
-
 def quitProgram():
 	print("Quitting program")
 	
@@ -214,20 +197,14 @@ def choiceInput(inputChoice):
 		stringCount = len(string)
 		if(stringCount > 1):
 			command, filename = string
-			print(command)
-			print(filename)
 		else:
 			command = inputChoice
-
 		if command == "get":
-			print(inputChoice.encode())
 			clientSocket.send(command.encode() + b'?' + filename.encode())
 			downloadFile(filename)
 			dataSocket.close()
 		elif command == "put":
-		
 			clientSocket.send(command.encode() + b'?' + filename.encode())
-			
 			uploadFile(filename)
 			dataSocket.close()
 		elif command == "ls":
@@ -237,31 +214,28 @@ def choiceInput(inputChoice):
 		else:
 			print("Invalid command")
 			print("ftp>", end="")
-			
-
-
-    
+			inputChoice = input()
+		
 
 #Connect to the server
-clientSocket.connect((serverName, serverPort))
-#
+serverName = sys.argv[1]
+serverPort = sys.argv[2]
 
-print("ftp>", end="")
-inputChoice = input()
-choiceInput(inputChoice)
-
-
-
-#Keep sending bytes until all bytes are sent
-
+#Initiating handshake
+print("Requesting connection to serverName. Sending SYN")
+clientSocket.connect(((serverName), int(serverPort)))
+clientSocket.send(b'SYN')
+clientSocket.settimeout(10)
+ACK = clientSocket.recv(10).decode()
 
 
-# while byteSent != len(data):
-    # #send that string!
-    # byteSent += clientSocket.send(data[byteSent :])
-    # print  ("Trying to send")
-    # print (data)
-
+if(ACK == "SYN ACK"):
+	print("Received SYN ACK, sending ACK")
+	clientSocket.send(b'ACK')
+	print("ftp>", end="")
+	inputChoice = input()
+	choiceInput(inputChoice)
+	
 
 #Close the socket
 clientSocket.close()
